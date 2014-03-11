@@ -1,9 +1,7 @@
-#include <QtOpenGL/QGLWidget>
-#include <QHBoxLayout>
 #include <QApplication>
-#include <GL/glx.h>
+#include <QHBoxLayout>
+#include "main.hpp"
 
-#include "OpenCLManager.hpp"
 
 #include <boost/thread.hpp>
 
@@ -12,39 +10,8 @@
 
 #define PRINT(x) std::cout << x << std::endl;
 
-class GLWidget : public QGLWidget {
-    Q_OBJECT
-    protected:
-    void initializeGL();
-    void paintGL();
-    void resizeGL(int width, int height);
-    int id;
-    oul::Context context;
-    cl::Image3D clImage;
-    GLuint texture;
-    bool valid;
-#if defined(CL_VERSION_1_2)
-    cl::ImageGL imageGL;
-#else
-    cl::Image2DGL imageGL;
-#endif
-    int sliceNr;
-public:
-    GLWidget(int id, oul::Context contex, cl::Image3D image,QWidget *parent = 0);
-    static GLXContext glContext;
-};
-
 GLXContext GLWidget::glContext = NULL;
 
-class MyWindow : public QWidget {
-    Q_OBJECT
-public:
-    MyWindow(int id, oul::Context context, cl::Image3D image);
-protected:
-    void keyPressEvent(QKeyEvent *event);
-private:
-    GLWidget *glWidget;
-};
 
 MyWindow::MyWindow(int id, oul::Context context, cl::Image3D image) {
     glWidget = new GLWidget(id,context,image);
@@ -56,9 +23,17 @@ MyWindow::MyWindow(int id, oul::Context context, cl::Image3D image) {
 
 
 GLWidget::GLWidget(int id, oul::Context context, cl::Image3D image,QWidget *parent)
-        : QGLWidget(QGLFormat(QGL::SampleBuffers), parent),id(id),context(context),clImage(image) {
+        : id(id),context(context),clImage(image) {
     sliceNr = 120;
     valid = false;
+
+}
+
+void GLWidget::initializeGL() {
+
+}
+
+void GLWidget::resizeGL(int w, int h) {
 
 }
 
@@ -189,17 +164,18 @@ int main(int argc, char ** argv) {
             400,400,400
     );
 
-    QApplication *app = new QApplication(argc, argv);
+    QApplication app(argc, argv);
     MyWindow *window1 = new MyWindow(1, context,clImage);
+    window1->resize(400,400);
     window1->show();
 
-    /*
-    MyWindow *window2 = new MyWindow(400,0,400,400,"Window 2", 2, context,clImage);
+    MyWindow *window2 = new MyWindow(2, context,clImage);
+    window2->resize(400,400);
+    window2->move(0,400);
     window2->show();
-    */
 
     // Test if the main loop can be run in a separate thread
-    app->exec();
+    app.exec();
     //thread = new boost::thread(app.exec);
 
     return 0;
