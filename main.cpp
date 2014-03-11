@@ -1,8 +1,6 @@
-#include <FL/Fl.H>
-#include <FL/Fl_Window.H>
-#include <FL/Fl_Box.H>
-#include <FL/gl.h>
-#include <FL/Fl_Gl_Window.H>
+#include <QtOpenGL/QGLWidget>
+#include <QHBoxLayout>
+#include <QApplication>
 #include <GL/glx.h>
 
 #include "OpenCLManager.hpp"
@@ -14,13 +12,17 @@
 
 #define PRINT(x) std::cout << x << std::endl;
 
-class MyWindow : public Fl_Gl_Window {
-    void draw();
-    int handle(int);
+class GLWidget : public QGLWidget {
+    Q_OBJECT
+    protected:
+    void initializeGL();
+    void paintGL();
+    void resizeGL(int width, int height);
     int id;
     oul::Context context;
     cl::Image3D clImage;
     GLuint texture;
+    bool valid;
 #if defined(CL_VERSION_1_2)
     cl::ImageGL imageGL;
 #else
@@ -28,20 +30,39 @@ class MyWindow : public Fl_Gl_Window {
 #endif
     int sliceNr;
 public:
-    MyWindow(int X, int Y, int W, int H, const char *L, int id, oul::Context contex, cl::Image3D image);
+    GLWidget(int id, oul::Context contex, cl::Image3D image,QWidget *parent = 0);
     static GLXContext glContext;
 };
 
-GLXContext MyWindow::glContext = NULL;
+GLXContext GLWidget::glContext = NULL;
+
+class MyWindow : public QWidget {
+    Q_OBJECT
+public:
+    MyWindow(int id, oul::Context context, cl::Image3D image);
+protected:
+    void keyPressEvent(QKeyEvent *event);
+private:
+    GLWidget *glWidget;
+};
+
+MyWindow::MyWindow(int id, oul::Context context, cl::Image3D image) {
+    glWidget = new GLWidget(id,context,image);
+    QHBoxLayout *mainLayout = new QHBoxLayout;
+    mainLayout->addWidget(glWidget);
+    setLayout(mainLayout);
+    setWindowTitle(tr("Hello GL"));
+}
 
 
-MyWindow::MyWindow(int X, int Y, int W, int H, const char *L, int id, oul::Context context, cl::Image3D image)
-        : Fl_Gl_Window(X, Y, W, H, L),id(id),context(context),clImage(image) {
+GLWidget::GLWidget(int id, oul::Context context, cl::Image3D image,QWidget *parent)
+        : QGLWidget(QGLFormat(QGL::SampleBuffers), parent),id(id),context(context),clImage(image) {
     sliceNr = 120;
+    valid = false;
 
 }
 
-void MyWindow::draw() {
+void GLWidget::paintGL() {
     PRINT("drawing")
     bool success = glXMakeCurrent(XOpenDisplay(0),glXGetCurrentDrawable(),glContext);
     if(!success)
@@ -50,7 +71,7 @@ void MyWindow::draw() {
     PRINT("current glX context is " << glXGetCurrentContext());
 
 
-    if (!valid()) {
+    if (!valid) {
         // Setup OpenGL
         // Create a GL-CL texture/2d image
         glEnable(GL_TEXTURE_2D);
@@ -99,6 +120,7 @@ void MyWindow::draw() {
         queue.enqueueReleaseGLObjects(&v);
         queue.finish();
         PRINT("Ran OpenCL kernel")
+        valid = true;
     }
 
     glClearColor(0.0f,0.0f,0.0f,0.0f);
@@ -118,14 +140,7 @@ void MyWindow::draw() {
     glEnd();
     glBindTexture(GL_TEXTURE_2D, 0);
 
-    this->swap_buffers();
-}
-
-int MyWindow::handle(int event) {
-    if(event == FL_KEYBOARD) {
-        PRINT("Key pressed in window " << id);
-        this->redraw();
-    }
+    //this->swap_buffers();
 }
 
 boost::thread * thread = NULL;
@@ -153,8 +168,8 @@ int main(int argc, char ** argv) {
     PRINT("display is " << display)
     XVisualInfo* vi = glXChooseVisual(display, DefaultScreen(display), sngBuf);
 
-    MyWindow::glContext = glXCreateContext(display, vi, 0, GL_TRUE);
-    PRINT("created GL context with ID " << MyWindow::glContext)
+    GLWidget::glContext = glXCreateContext(display, vi, 0, GL_TRUE);
+    PRINT("created GL context with ID " << GLWidget::glContext)
 
     // Create OpenCL context
     oul::DeviceCriteria criteria;
@@ -162,7 +177,7 @@ int main(int argc, char ** argv) {
     criteria.setDeviceCountCriteria(1);
     criteria.setCapabilityCriteria(oul::DEVICE_CAPABILITY_OPENGL_INTEROP);
     oul::OpenCLManager * manager = oul::OpenCLManager::getInstance();
-    oul::Context context = manager->createContext(criteria, (unsigned long *)(MyWindow::glContext));
+    oul::Context context = manager->createContext(criteria, (unsigned long *)(GLWidget::glContext));
     context.createProgramFromSource("../renderSliceToTexture.cl");
     //oul::Context context2 = manager->createContext(criteria, (unsigned long *)(MyWindow::glContext));
 
@@ -174,14 +189,18 @@ int main(int argc, char ** argv) {
             400,400,400
     );
 
-    MyWindow *window1 = new MyWindow(0,0,400,400,"Window 1", 1, context,clImage);
+    QApplication *app = new QApplication(argc, argv);
+    MyWindow *window1 = new MyWindow(1, context,clImage);
     window1->show();
 
+    /*
     MyWindow *window2 = new MyWindow(400,0,400,400,"Window 2", 2, context,clImage);
     window2->show();
+    */
 
     // Test if the main loop can be run in a separate thread
-    thread = new boost::thread(Fl::run);
+    app->exec();
+    //thread = new boost::thread(app.exec);
 
     return 0;
 }
