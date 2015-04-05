@@ -127,18 +127,7 @@ void GLWidget::paintGL() {
     //this->swap_buffers();
 }
 
-boost::thread * thread = NULL;
-
-void quit(void) {
-    PRINT("quit called")
-    if(thread != NULL)
-        thread->join();
-}
-
 int main(int argc, char ** argv) {
-
-    if(atexit(quit) != 0)
-        PRINT("atexit() failed")
 
     QApplication *app = new QApplication(argc, argv);
 
@@ -185,8 +174,6 @@ int main(int argc, char ** argv) {
     window2->move(400,0);
     window2->show();
 
-    // Test if the main loop can be run in a separate thread
-    //thread = new boost::thread(QApplication::exec);
     QApplication::exec();
 
     return 0;
