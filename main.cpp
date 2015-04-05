@@ -171,12 +171,12 @@ int main(int argc, char ** argv) {
 
     MyWindow *window2 = new MyWindow(2, context,clImage);
     window2->resize(400,400);
-    window2->move(0,400);
+    window2->move(400,0);
     window2->show();
 
     // Test if the main loop can be run in a separate thread
-    app.exec();
-    //thread = new boost::thread(app.exec);
+    //thread = new boost::thread(QApplication::exec);
+    QApplication::exec();
 
     return 0;
 }
