@@ -29,8 +29,7 @@ class GLWidget : public QGLWidget {
 #endif
     int sliceNr;
 public:
-    GLWidget(int id, oul::Context contex, cl::Image3D image,QWidget *parent = 0);
-    static GLXContext glContext;
+    GLWidget(int id, oul::Context contex, cl::Image3D image);
 };
 
 
@@ -38,6 +37,7 @@ class MyWindow : public QWidget {
     Q_OBJECT
 public:
     MyWindow(int id, oul::Context context, cl::Image3D image);
+    static QGLContext* GLContext;
 protected:
 private:
     GLWidget *glWidget;
